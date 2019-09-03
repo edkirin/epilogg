@@ -37,11 +37,3 @@ if not project.settings.local.Deploy:
         # url(r'^404/?$', views.handle_404),
         # url(r'^500/?$', views.handle_500),
     ]
-
-
-# create css version timestamp on first request
-import time
-timestamp = '%d' % (int(time.mktime(time.gmtime())))
-fname = '%s/timestamp.inc' % (project.settings.TEMPLATES[0]['DIRS'][0])
-with open(fname, 'w') as f:
-    f.write(timestamp)

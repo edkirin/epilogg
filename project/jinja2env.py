@@ -1,11 +1,13 @@
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import reverse
-from django.db.models import Q
 
 import datetime
+import time
 
 from jinja2 import Environment
 import project.settings
+
+timestamp_inc = None
 
 
 #--------------------------------------------------------------------------------------------------
@@ -149,6 +151,18 @@ def get_year_today():
 #--------------------------------------------------------------------------------------------------
 
 
+def get_timestamp_inc():
+    global timestamp_inc
+
+    if timestamp_inc is None:
+        timestamp_inc = str(time.mktime(time.gmtime()))
+
+    return timestamp_inc
+
+
+#--------------------------------------------------------------------------------------------------
+
+
 def environment(**options):
     from django.utils.translation import ugettext
 
@@ -176,6 +190,7 @@ def environment(**options):
         'is_deploy': lambda: project.settings.local.Deploy,
         'is_debug': lambda: project.settings.local.Debug,
         'channels_enabled': lambda: project.settings.local.ChannelsEnabled,
+        'get_timestamp_inc': get_timestamp_inc,
     })
     return env
 
