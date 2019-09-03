@@ -34,7 +34,9 @@
             {{ format_datetime(item.timestamp, include_seconds=True) }}
         </td>
         <td class="col_client_app">
-            {{ item.client_app.name }}
+            {% if show_client_app_col %}
+                {{ item.client_app.name }}
+            {% endif %}
         </td>
         <td>
             {{ item.category | default_if_none("") }}

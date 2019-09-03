@@ -68,7 +68,7 @@
                             </form>
 
                             <div class="box-footer">
-                                {% if app.unseen_entries > 0 %}
+{#                                {% if app.unseen_entries > 0 %}#}
                                     {% if app.unseen_error_entries > 0 %}
                                         {% set cls = 'btn-danger' %}
                                     {% else %}
@@ -78,7 +78,7 @@
                                         <i class="fa fa-fw fa-check"></i>
                                         Mark all seen
                                     </a>
-                                {% endif %}
+{#                                {% endif %}#}
 
                                 <a href="#" class="btn btn-default btn-xs view_app pull-right" data-app_id="{{ app.item.id }}">
                                     <i class="fa fa-fw fa-list"></i>
