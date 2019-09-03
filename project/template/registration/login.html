@@ -1,0 +1,36 @@
+{% extends "base/base.html" %}
+{% set body_class = "login-page" %}
+
+{% block body_content %}
+
+    <div class="login-box">
+        <div class="login-logo">
+            <a href="/">epi<strong>:logg</strong></a>
+        </div>
+
+        <div class="login-box-body">
+            <p class="login-box-msg">Sign in to start your session</p>
+
+            <form action="/user/login/" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}">
+                <div class="form-group has-feedback{% if err %} has-error{% endif %}">
+                    <input type="text" name="ident" class="form-control" placeholder="Email">
+                    <span class="glyphicon glyphicon-envelope form-control-feedback"></span>
+                </div>
+                <div class="form-group has-feedback{% if err %} has-error{% endif %}">
+                    <input type="password" name="password" class="form-control" placeholder="Password">
+                    <span class="glyphicon glyphicon-lock form-control-feedback"></span>
+                </div>
+
+                <div class="text-right">
+                    <button type="submit" class="btn btn-primary btn-flat">
+                        Sign In
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+{% endblock %}

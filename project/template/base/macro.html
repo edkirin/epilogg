@@ -1,0 +1,59 @@
+{% set const = get_const_module() %}
+
+
+{# ---------------------------------------------------------------------------------------------------------- #}
+
+
+{% macro render_toggle_option(value, cls="", id=0, editable=True) %}
+    {% if editable %}
+        <a href="#" class="toggle_value" data-cls="{{ cls }}" data-id="{{ id }}">
+            <i class="fa fa-fw fa-check text-success value_true{% if not value %} hidden{% endif %}"></i>
+            <i class="fa fa-fw fa-close text-muted value_false{% if value %} hidden{% endif %}"></i>
+        </a>
+    {% else %}
+        {% if value %}
+            <i class="fa fa-fw fa-check text-success"></i>
+        {% else %}
+            <i class="fa fa-fw fa-close text-muted"></i>
+        {% endif %}
+    {% endif %}
+{% endmacro %}
+
+
+{# ---------------------------------------------------------------------------------------------------------- #}
+
+
+{% macro render_log_entry_table_row(item, show_client_app_col) %}
+    <tr class="entry" data-id="{{ item.id }}" data-format="{{ item.format }}">
+        <td class="text-center">
+            <span class="label {{ const.LevelLabelClass[item.level] }} center-block text-uppercase">
+                {{ item.get_level_display() }}
+            </span>
+        </td>
+        <td>
+            {{ format_datetime(item.timestamp, include_seconds=True) }}
+        </td>
+        <td class="col_client_app">
+            {{ item.client_app.name }}
+        </td>
+        <td>
+            {{ item.category | default_if_none("") }}
+        </td>
+        <td class="text-center">
+            <span class="label {{ const.DirectionLabelClass[item.direction] }}">
+                {{ item.get_direction_display() }}
+            </span>
+        </td>
+        <td class="data">
+            {% if item.format == const.FormatJson %}
+                <span class="label label-success">
+                    json
+                </span>&nbsp;&nbsp;
+            {% endif %}
+            {{ item.data | default_if_none("") }}
+        </td>
+    </tr>
+{% endmacro %}
+
+
+{# ---------------------------------------------------------------------------------------------------------- #}

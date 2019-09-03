@@ -1,0 +1,488 @@
+{% extends "base/body_content.html" %}
+{% import "base/pagination.html" as pagination %}
+{% import "base/macro.html" as macro %}
+{% set include_prism = True %}
+
+{% if client_app %}
+    {% set page_title = "{} / {}".format(facility.name, client_app.name) %}
+    {% set title = client_app.name %}
+{% else %}
+    {% set title = facility.name %}
+{% endif %}
+
+
+{% block breadcrumbs %}
+    {% if client_app %}
+        <li>
+            <a href="/facility/{{ facility.id }}/">
+                {{ facility.name }}
+            </a>
+        </li>
+    {% endif %}
+{% endblock %}
+
+
+{% block page_title %}
+    <h1>
+        {{ facility.name }}
+
+        {% if client_app %}
+            <small><strong>{{ client_app.name }}</strong></small>
+        {% endif %}
+    </h1>
+{% endblock %}
+
+
+{% block main_content %}
+    {% autopaginate items %}
+
+    <div class="box">
+        {% if client_app %}
+            <div class="box-header with-border">
+                <h3 class="box-title">{{ client_app.name }}</h3>
+            </div>
+        {% endif %}
+
+        <div class="box-body">
+
+            <form id="fm_filter" class="form-inline filter_box" method="post" action="{{ request.path }}">
+                {% csrf_token %}
+                <input type="hidden" name="cmd" value="set_filter">
+                <div class="form-group">
+                    <label>Search</label>
+                    <div class="input-group">
+                        <input type="text" name="filter_search" class="form-control" value="{{ filter['search'] | default_if_none("") }}">
+                        <span class="input-group-btn">
+                            <button class="btn btn-default" type="submit">
+                                <i class="fa fa-check"></i>
+                            </button>
+                            <button class="btn btn-default clear_filter" type="button">
+                                <i class="fa fa-close"></i>
+                            </button>
+                        </span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Level</label>
+                    <select name="filter_level" class="form-control apply_on_change">
+                        <option value=""{% if filter['selected_level'] == None %} selected{% endif %}>-</option>
+                        {% for value, caption in const.LevelChoices %}
+                            <option value="{{ value }}"{% if filter['selected_level'] == value %} selected{% endif %}>
+                                {{ caption }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="filter_category" class="form-control apply_on_change">
+                        <option value=""{% if filter['selected_category'] == None %} selected{% endif %}>-</option>
+                        {% for c in filter['categories'] %}
+                            <option value="{{ c }}"{% if c == filter['selected_category'] %} selected{% endif %}>
+                                {{ c }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+
+            {{ pagination.render_pagination(items_pages) }}
+
+            <div class="table-responsive">
+                <table class="table table-condensed table-hover table-vmiddle log_entries{% if client_app %} exclude_client_app_col{% endif %}">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 90px;">Level</th>
+                            <th class="text-center" style="width: 130px;">Timestamp</th>
+                            <th class="col_client_app" style="width: 200px;">Application</th>
+                            <th style="width: 200px;">Category</th>
+                            <th class="text-center" style="width: 50px;">Dir</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="items">
+                        {% for c in items %}
+                            {{ macro.render_log_entry_table_row(item=c, show_client_app_col=not client_app) }}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="box-footer">
+            {{ pagination.render_pagination(items_pages) }}
+        </div>
+    </div>
+
+
+    <div class="modal fade log_entry_details" id="dlg_log_entry_details" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                    <h4 class="modal-title">Log entry details</h4>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="next_id" value="">
+                    <input type="hidden" name="prev_id" value="">
+
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <table class="table">
+                                <tbody>
+                                    <tr>
+                                        <th>Application</th>
+                                        <td class="value client_app"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Level</th>
+                                        <td class="value level">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <td class="value timestamp"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Category</th>
+                                        <td class="value category"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Direction</th>
+                                        <td class="value direction"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="data col-sm-8">
+                            <div class="tab_switchers">
+                                <a class="btn btn-primary btn-xs switch plain" href="#" data-format="plain">
+                                    plain
+                                </a>
+                                <a class="btn btn-primary btn-xs switch json" href="#" data-format="json">
+                                    json
+                                </a>
+                                <a class="btn btn-primary btn-xs switch yaml" href="#" data-format="yaml">
+                                    yaml
+                                </a>
+                                <a class="btn btn-success btn-xs switch vars pull-right" href="#" data-format="vars">
+                                    vars
+                                </a>
+                            </div>
+
+                            <div class="data_container plain">
+                                <pre class="data"><code class="language-plain"></code></pre>
+                            </div>
+                            <div class="data_container json">
+                                <pre class="data"><code class="language-json"></code></pre>
+                            </div>
+                            <div class="data_container yaml">
+                                <pre class="data"><code class="language-yaml"></code></pre>
+                            </div>
+                            <div class="data_container vars">
+                                <pre class="data"><code class="language-yaml"></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default next">
+                        <i class="fa fa-fw fa-arrow-up"></i>
+                        Next
+                    </button>
+                    <button type="button" class="btn btn-default prev">
+                        <i class="fa fa-fw fa-arrow-down"></i>
+                        Previous
+                    </button>
+                    <button type="button" class="btn btn-success" data-dismiss="modal">
+                        <i class="fa fa-fw fa-check"></i>
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        var log_entry_dlg_visible = false;
+        var user_set_format = null;
+        var cached_responses = {};
+        var ws = null;
+
+        function switch_data_format(format) {
+            var dlg = '#dlg_log_entry_details';
+            $(dlg + ' .data .tab_switchers .switch').removeClass('active');
+            $(dlg + ' .data .tab_switchers .switch.' + format).addClass('active');
+            $(dlg + ' .data .data_container').addClass('hidden');
+            $(dlg + ' .data .data_container.' + format).removeClass('hidden');
+        }
+
+        function select_row(entry_id) {
+            unselect_rows();
+            $('.log_entries tr.entry[data-id="' + entry_id + '"]').addClass('selected');
+        }
+
+        function unselect_rows() {
+            $('.log_entries tr.entry').removeClass('selected');
+        }
+
+        function fetch_entry_details(entry_id, callback) {
+            if (entry_id in cached_responses) {
+                callback(cached_responses[entry_id]);
+            } else {
+                var post_data = {
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                    id: entry_id
+                };
+                $.post('/get_log_entry_details/', post_data,
+                    function (response) {
+                        {% if not is_debug() %}
+                            {# disable caching for debug instance #}
+                            cached_responses[entry_id] = response;
+                        {% endif %}
+                        callback(response);
+                    }, 'json'
+                );
+            }
+        }
+
+        function show_entry_details(entry_id) {
+            var dlg = '#dlg_log_entry_details';
+
+            var prev_id = $('tr.entry[data-id="' + entry_id + '"]').next('tr.entry').data('id');
+            var next_id = $('tr.entry[data-id="' + entry_id + '"]').prev('tr.entry').data('id');
+
+            fetch_entry_details(entry_id,
+                function(response) {
+                    var html;
+
+                    $(dlg + ' input[name="prev_id"]').val(prev_id);
+                    $(dlg + ' input[name="next_id"]').val(next_id);
+
+                    $(dlg + ' .data .tab_switchers .switch').addClass('hidden');
+
+                    if (response.data['formats'].indexOf('plain') !== -1) {
+                        $(dlg + ' .data .switch.plain').removeClass('hidden');
+                        $(dlg + ' .data .data_container.plain code').text(response.data['plain']);
+                    }
+                    if (response.data['formats'].indexOf('json') !== -1) {
+                        $(dlg + ' .data .switch.json').removeClass('hidden');
+                        $(dlg + ' .data .data_container.json code').text(response.data['json']);
+                    }
+                    if (response.data['formats'].indexOf('yaml') !== -1) {
+                        $(dlg + ' .data .switch.yaml').removeClass('hidden');
+                        $(dlg + ' .data .data_container.yaml code').text(response.data['yaml']);
+                    }
+                    if (response.vars.length > 0) {
+                        $(dlg + ' .data .switch.vars').removeClass('hidden');
+                        $(dlg + ' .data .data_container.vars code').text(response.vars);
+                    }
+                    Prism.highlightAll();
+
+                    if (user_set_format === null) {
+                        {# set default format, if user didn't set any #}
+                        if (response.data['formats'].indexOf('yaml') !== -1) {
+                            switch_data_format('yaml');
+                        } else if (response.data['formats'].indexOf('json') !== -1) {
+                            switch_data_format('json');
+                        } else {
+                            switch_data_format('plain');
+                        }
+                    } else {
+                        if (response.data['formats'].indexOf(user_set_format) !== -1) {
+                            switch_data_format(user_set_format);
+                        } else {
+                            switch_data_format('plain');
+                        }
+                    }
+
+                    $(dlg + ' .value.client_app').text(response.client_app);
+                    $(dlg + ' .value.timestamp').text(response.timestamp);
+                    $(dlg + ' .value.category').text(response.category);
+
+                    html =
+                        '<span class="label text-uppercase ' + response.level_label_class + '">' +
+                            response.level_str +
+                        '</span>';
+                    $(dlg + ' .value.level').html(html);
+
+                    html =
+                        '<span class="label text-uppercase ' + response.direction_label_class + '">' +
+                            response.direction_str +
+                        '</span>';
+                    $(dlg + ' .value.direction').html(html);
+
+                    log_entry_dlg_visible = true;
+                    $(dlg).modal('show');
+                }
+            );
+        }
+
+        function prev_entry() {
+            var entry_id = $('#dlg_log_entry_details input[name="prev_id"]').val();
+            if (entry_id) {
+                select_row(entry_id);
+                show_entry_details(entry_id);
+            }
+        }
+
+        function next_entry() {
+            var entry_id = $('#dlg_log_entry_details input[name="next_id"]').val();
+            if (entry_id) {
+                select_row(entry_id);
+                show_entry_details(entry_id);
+            }
+        }
+
+
+        {% if channels_enabled() %}
+
+            function get_ws_protocol() {
+                return window.location.protocol.match(/^https/) ? "wss" : "ws"
+            }
+
+            function ws_send(data) {
+                ws.send(JSON.stringify(data));
+            }
+
+            function ws_init() {
+                ws = new WebSocket(get_ws_protocol() + '://' + window.location.host +'/ws/on_log_event/');
+
+                ws.onopen = function(e) {
+                    console.log("WS event: onopen");
+                    console.log(e);
+
+                    var data = {
+                        filter_level: {{ filter['selected_level'] if filter['selected_level'] != None else 'null' }},
+                        filter_category: {% if filter['selected_category'] != None %}'{{ filter['selected_category'] }}'{% else %}null{% endif %}
+                    };
+
+                    {% if client_app %}
+                        data.cmd = 'watch_client_app';
+                        data.client_app_id = '{{ client_app.id }}';
+                    {% else %}
+                        data.cmd = 'watch_facility';
+                        data.facility_id = '{{ facility.id }}';
+                    {% endif %}
+
+                    ws_send(data);
+                };
+
+                ws.onclose = function()
+                {
+                    console.log("WS event: onclose");
+                    // try to reconnect every 3s
+                    setTimeout(function(){ws_init()}, 3000);
+                };
+
+                ws.onmessage = function(e)
+                {
+                    console.log("WS event: onmessage");
+
+                    var data = JSON.parse(e.data);
+                    var html = '';
+
+                    console.log(data);
+
+                    switch (data.event) {
+                        case 'log_event_occurred':
+                            {# enable log update on first page only #}
+                            {% if current_page == 1 %}
+                                for (var i = 0; i < data.log.items.length; i++) {
+                                    html += data.log.items[i].row_html;
+                                }
+
+                                $('table.log_entries tbody.items').prepend(html);
+
+                                {# truncate table if needed #}
+                                while ($("table.log_entries tbody.items tr").length > {{ settings.PAGINATION_DEFAULT_PAGINATION }})
+                                {
+                                    $("table.log_entries tbody.items tr:last").remove();
+                                }
+                            {% endif %}
+                            break;
+                    }
+                };
+            }
+
+        {% endif %}
+
+
+        $(function () {
+            $('#dlg_log_entry_details').on('hidden.bs.modal',
+                function () {
+                    log_entry_dlg_visible = false;
+                }
+            );
+
+            $('.log_entries').delegate('tr.entry', 'click',
+                function() {
+                    var entry_id = $(this).data('id');
+                    select_row(entry_id);
+                    show_entry_details(entry_id);
+                }
+            );
+
+            $('#dlg_log_entry_details .btn.prev').click(
+                function() {
+                    prev_entry();
+                }
+            );
+
+            $('#dlg_log_entry_details .btn.next').click(
+                function() {
+                    next_entry();
+                }
+            );
+
+            $(document).keydown(
+                function(e) {
+                    var captured = false;
+                    if (log_entry_dlg_visible) {
+                        switch (e.keyCode) {
+                            case 40:  // cursor down
+                                prev_entry();
+                                captured = true;
+                                break;
+                            case 38:  // cursor up
+                                next_entry();
+                                captured = true;
+                                break;
+                        }
+                    }
+                    return !captured;
+                }
+            );
+
+            $('#fm_filter .apply_on_change').change(
+                function() {
+                    $('#fm_filter').submit();
+                }
+            );
+
+            $('#fm_filter .clear_filter').click(
+                function() {
+                    $('#fm_filter input[name="cmd"]').val('clear_filter');
+                    $('#fm_filter').submit();
+                }
+            );
+
+            $('.tab_switchers a.switch').click(
+                function() {
+                    user_set_format = $(this).data('format');
+                    switch_data_format(user_set_format);
+                    return false;
+                }
+            );
+
+
+            {% if channels_enabled() %}
+                ws_init();
+            {% endif %}
+        });
+    </script>
+
+
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends "base/body_content.html" %}
+{% set title = "Facilities" %}
+{% import "base/pagination.html" as pagination %}
+{% set body_class = 'frontpage' %}
+
+{% block main_content %}
+
+    {% macro render_level_row(level, app) %}
+        {% set cnt, unread_cnt = app.get_entries_count(level) %}
+        {% set has_errors = unread_cnt > 0 and level in [const.LevelError, const.LevelCritical] %}
+        <li class="{% if has_errors %}bg-danger{% endif %}">
+            <a href="#" class="select_level" data-level="{{ level }}" data-app_id="{{ app.id }}">
+                {{ dict(const.LevelChoices)[level] }}
+                <span class="pull-right">
+                    {% if unread_cnt > 0 %}
+                        {% if level == const.LevelWarning %}
+                            {% set cls = 'text-warning' %}
+                        {% elif level in [const.LevelError, const.LevelCritical] %}
+                            {% set cls = 'text-danger' %}
+                        {% else %}
+                            {% set cls = '' %}
+                        {% endif %}
+                        <span class="badge {{ const.LevelBgClass[level] }}" data-toggle="tooltip" data-placement="bottom" title="Unread log entries">
+                            {{ unread_cnt }}
+                        </span>
+                        /
+                    {% endif %}
+                    <span class="text-muted">{{ cnt }}</span>
+                </span>
+            </a>
+        </li>
+    {% endmacro %}
+
+
+    {% for f in sidebar_data.facilities %}
+        <section class="facility">
+            <h2>
+                {{ f.facility.name }}
+            </h2>
+
+            <div class="row">
+                {% for app in f.apps %}
+                    <div class="col-sm-3">
+                        <div class="box box-widget widget-user">
+                            <div class="widget-user-header bg-primary">
+                                <h3 class="title">
+                                    <a href="#" class="view_app" data-app_id="{{ app.item.id }}">
+                                        {{ app.item.name }}
+                                    </a>
+                                </h3>
+{#                                <h5 class="widget-user-desc">#}
+{#                                    Some H5 title...#}
+{#                                </h5>#}
+                            </div>
+
+                            <form class="box-footer no-padding" method="post" action="/facility/{{ f.facility.id }}/app/{{ app.item.id }}/" data-app_id="{{ app.item.id }}">
+                                {% csrf_token %}
+                                <input type="hidden" name="cmd" value="set_filter">
+                                <input type="hidden" name="filter_search" value="">
+                                <input type="hidden" name="filter_level" value="">
+                                <input type="hidden" name="filter_category" value="">
+
+                                <ul class="nav nav-stacked">
+                                    {% for level in [const.LevelDebug, const.LevelInfo, const.LevelWarning, const.LevelError, const.LevelCritical] %}
+                                        {{ render_level_row(level, app.item) }}
+                                    {% endfor %}
+                                </ul>
+                            </form>
+
+                            <div class="box-footer">
+                                {% if app.unseen_entries > 0 %}
+                                    {% if app.unseen_error_entries > 0 %}
+                                        {% set cls = 'btn-danger' %}
+                                    {% else %}
+                                        {% set cls = 'btn-default' %}
+                                    {% endif %}
+                                    <a href="#" class="btn {{ cls }} btn-xs mark_log_seen" data-app_id="{{ app.item.id }}" data-name="{{ app.item.name }}">
+                                        <i class="fa fa-fw fa-check"></i>
+                                        Mark all seen
+                                    </a>
+                                {% endif %}
+
+                                <a href="#" class="btn btn-default btn-xs view_app pull-right" data-app_id="{{ app.item.id }}">
+                                    <i class="fa fa-fw fa-list"></i>
+                                    All log entries
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if loop.index % 4 == 0 %}
+                        <div class="clearfix"></div>
+                    {%endif %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endfor %}
+
+
+    <div class="modal fade" id="dlg_mark_log_seen" tabindex="-1">
+        <form class="modal-dialog" method="post" action="{{ request.path }}">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                    <h4 class="modal-title">Mark log seen</h4>
+                </div>
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" name="cmd" value="mark_log_seen">
+                    <input type="hidden" name="app_id" value="">
+                    <input type="hidden" name="backlink" value="{{ request.path }}">
+
+                    <p>
+                        Mark all log entries for <strong class="app_name"></strong> seen?
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default prev" data-dismiss="modal">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fa fa-fw fa-check"></i>
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+
+    <script>
+        $(document).ready(function(){
+
+            $('.select_level').click(
+                function() {
+                    var app_id = $(this).data('app_id');
+                    var level = $(this).data('level');
+
+                    $('form[data-app_id="' + app_id + '"] input[name="filter_level"]').val(level);
+                    $('form[data-app_id="' + app_id + '"]').submit();
+
+                    return false;
+                }
+            );
+
+            $('.view_app').click(
+                function() {
+                    var app_id = $(this).data('app_id');
+
+                    $('form[data-app_id="' + app_id + '"] input[name="filter_search"]').val("");
+                    $('form[data-app_id="' + app_id + '"] input[name="filter_level"]').val("");
+                    $('form[data-app_id="' + app_id + '"] input[name="filter_category"]').val("");
+                    $('form[data-app_id="' + app_id + '"]').submit();
+
+                    return false;
+                }
+            );
+
+            $('.mark_log_seen').click(
+                function() {
+                    var dlg = '#dlg_mark_log_seen';
+
+                    $(dlg +' input[name="app_id"]').val($(this).data('app_id'));
+                    $(dlg +' .app_name').text($(this).data('name'));
+                    $(dlg).modal('show');
+
+                    return false;
+                }
+            );
+
+            $('[data-toggle="tooltip"]').tooltip();
+        });
+    </script>
+
+{% endblock %}

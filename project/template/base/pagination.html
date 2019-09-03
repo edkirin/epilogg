@@ -1,0 +1,38 @@
+
+
+{# ---------------------------------------------------------------------------------------------------------- #}
+
+
+{% macro render_pagination(pages) -%}
+    {% if pages.is_paginated %}
+        <div class="pagination-container">
+            <ul class="pagination pagination-sm">
+                {% if pages.page_obj.has_previous() %}
+                    <li><a href="?page={{ pages.page_obj.previous_page_number() }}{{ pages.getvars }}{{ pages.hashtag }}">&lsaquo;&lsaquo;</a></li>
+                {% else %}
+                    <li class="disabled"><a href="#">&lsaquo;&lsaquo;</a></li>
+                {% endif %}
+                {% for page in pages.pages %}
+                    {% if page %}
+                        {% if page == pages.page_obj.number %}
+                            <li class="active"><a href="#">{{ page }}</a></li>
+                        {% else %}
+                            <li><a href="?page={{ page }}{{ pages.getvars }}{{ pages.hashtag }}">{{ page }}</a></li>
+                        {% endif %}
+                    {% else %}
+                        <li><a>...</a></li>
+                    {% endif %}
+                {% endfor %}
+                {% if pages.page_obj.has_next() %}
+                    <li><a href="?page={{ pages.page_obj.next_page_number() }}{{ pages.getvars }}{{ pages.hashtag }}">&rsaquo;&rsaquo;</a></li>
+                {% else %}
+                    <li class="disabled"><a class="disabled">&rsaquo;&rsaquo;</a></li>
+                {% endif %}
+            </ul>
+            <div class="cleaner"></div>
+        </div>
+    {% endif %}
+{%- endmacro %}
+
+
+{# ---------------------------------------------------------------------------------------------------------- #}

@@ -1,0 +1,12 @@
+django >= 2.2,<2.3
+django-debug-toolbar
+django-jinja
+djangorestframework
+psycopg2
+psycopg2-binary
+requests
+pyyaml
+
+# channels
+django-channels
+channels-redis
