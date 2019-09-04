@@ -221,7 +221,31 @@
     <script>
         /* <![CDATA[ */
 
+        function do_spinner(element, state)
+        {
+            {# replace icon with spinner and disable button, and vice versa #}
+            var icon = $(element).find("i");
+            if (state)
+            {
+                $(icon).data("old_classes", $(icon).attr("class"));
+                $(icon).removeClass();  {# remove all classes #}
+                $(icon).addClass("fa fa-fw fa-spinner fa-spin");
+                $(element).addClass("disabled").blur();
+            } else {
+                $(icon).removeClass();  {# remove all classes #}
+                $(icon).addClass($(icon).data("old_classes"));
+                $(element).removeClass("disabled").blur();
+            }
+        }
+
         $(function () {
+            $(".spin_on_click").click(
+                function()
+                {
+                    do_spinner(this, true);
+                    return true;
+                }
+            );
         });
 
         /* ]]> */
