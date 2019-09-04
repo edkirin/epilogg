@@ -89,14 +89,12 @@
             {{ pagination.render_pagination(items_pages) }}
 
             <div class="table-responsive">
-                <table class="table table-condensed table-hover table-vmiddle log_entries">
+                <table class="table table-condensed table-hover table-vmiddle log_entries{% if client_app %} exclude_client_app_col{% endif %}">
                     <thead>
                         <tr>
                             <th class="text-center" style="width: 90px;">Level</th>
                             <th class="text-center" style="width: 130px;">Timestamp</th>
-                            {% if client_app %}
-                                <th class="col_client_app" style="width: 200px;">Application</th>
-                            {% endif %}
+                            <th class="col_client_app" style="width: 200px;">Application</th>
                             <th style="width: 200px;">Category</th>
                             <th class="text-center" style="width: 50px;">Dir</th>
                             <th>Data</th>
