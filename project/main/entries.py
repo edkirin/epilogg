@@ -90,6 +90,9 @@ def entry_list(request, facility_id, client_app_id=None):
 
     # locate_entry = request.GET.get('locate_entry', default=None)
 
+    all_client_apps = ClientApp.objects.filter(facility=facility)
+    all_client_apps_ids = [c.id for c in all_client_apps]
+
     if client_app_id is not None:
         q = Q(id=client_app_id) & \
             Q(facility=facility) & \
@@ -118,7 +121,7 @@ def entry_list(request, facility_id, client_app_id=None):
             raise Http404
 
     if client_app is None:
-        q_common = Q(client_app__facility=facility)
+        q_common = Q(client_app__in=all_client_apps_ids)
     else:
         q_common = Q(client_app=client_app)
 
@@ -136,23 +139,10 @@ def entry_list(request, facility_id, client_app_id=None):
         for term in terms:
             q &= Q(data__icontains=term)
 
-    related = [
-    ]
     only = [
-        'format', 'level', 'timestamp', 'category', 'direction', 'data',
+        'format', 'level', 'timestamp', 'category', 'direction', 'data', 'client_app_id',
     ]
-
-    if client_app is None:
-        related += [
-            'client_app',
-        ]
-        only += [
-            'client_app__name',
-        ]
-
     items = LogEntry.objects.only(*only).filter(q)
-    if len(related):
-        items = items.select_related(*related)
 
     sidebar_data = create_sidebar_data(
         user=request.user,
@@ -173,12 +163,23 @@ def entry_list(request, facility_id, client_app_id=None):
         'selected_level': active_filter['level'] if  'level' in active_filter else None,
     }
 
+    if client_app is None:
+        client_apps_data = {
+            c.id: c.name for c in all_client_apps
+        }
+    else:
+        client_apps_data = dict()
+
+    def get_client_app_name(id):
+        return client_apps_data[id] if id in client_apps_data else ""
+
     return render(request, 'entries/list.html', {
         'items': items,
         'facility': facility,
         'client_app': client_app,
         'sidebar_data': sidebar_data,
         'filter': filter,
+        'get_client_app_name': get_client_app_name,
         'settings': project.settings,
         'current_page': current_page,
     })

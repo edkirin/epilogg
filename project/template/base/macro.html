@@ -23,7 +23,7 @@
 {# ---------------------------------------------------------------------------------------------------------- #}
 
 
-{% macro render_log_entry_table_row(item, show_client_app_col) %}
+{% macro render_log_entry_table_row(item, show_client_app_col, client_app_name="") %}
     <tr class="entry" data-id="{{ item.id }}" data-format="{{ item.format }}">
         <td class="text-center">
             <span class="label {{ const.LevelLabelClass[item.level] }} center-block text-uppercase">
@@ -34,8 +34,8 @@
             {{ format_datetime(item.timestamp, include_seconds=True) }}
         </td>
         <td class="col_client_app">
-            {% if show_client_app_col %}
-                {{ item.client_app.name }}
+            {% if show_client_app_col and client_app_name %}
+                {{ client_app_name }}
             {% endif %}
         </td>
         <td>

@@ -37,6 +37,7 @@ async def on_log_event_occurred(client_app_id, log_items):
                     'row_html': render_to_string('consumers/log_entry_log.html', {
                         'item': c,
                         'show_client_app_col': True,
+                        'client_app_name': c.client_app.name if c.client_app is not None else "",
                     })
                 } for c in log_items[::-1]  # set items in reverse order
             ]
