@@ -11,8 +11,6 @@ import project.main.const as const
 def migrate_logs():
     mongo = Mongo()
 
-    items = []
-
     related = [
         'client_app',
     ]
@@ -33,7 +31,7 @@ def migrate_logs():
         except:
             vars = None
 
-        items.append({
+        item = {
             'pk': uuid.uuid4(),
             'client_app': log.client_app.pk,
             'client_app_name': log.client_app.name if log.client_app is not None else None,
@@ -47,9 +45,9 @@ def migrate_logs():
             'vars': vars,
             'confirmed': log.confirmed,
             'timestamp': log.timestamp,
-        })
+        }
 
-    mongo.log.insert_many(items)
+        mongo.log.insert(item)
 
 
 #--------------------------------------------------------------------------------------------------
