@@ -69,21 +69,18 @@ def frontpage(request):
 
         if cmd == 'mark_log_seen':
             app_id = request.POST.get('app_id')
+
             q = Q(facility__users=request.user) & \
                 Q(id=app_id)
 
-            ClientApp.objects.filter(q).update(
-                entries_notset_unread_cnt=0,
-                entries_debug_unread_cnt=0,
-                entries_info_unread_cnt=0,
-                entries_warning_unread_cnt=0,
-                entries_error_unread_cnt=0,
-                entries_critical_unread_cnt=0,
-            )
+            try:
+                client_app = ClientApp.objects.get(q)
+            except ClientApp.DoesNotExist:
+                raise Http404
 
             mongo = Mongo()
             f = {
-                'client_app': app_id,
+                'client_app': client_app.pk,
                 'confirmed': False,
             }
             mongo.log.update_many(
@@ -94,6 +91,7 @@ def frontpage(request):
                     }
                 }
             )
+            client_app.normalize_entries_cnt(save=True)
 
             return HttpResponseRedirect(request.POST.get('backlink'))
 
