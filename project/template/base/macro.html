@@ -24,10 +24,10 @@
 
 
 {% macro render_log_entry_table_row(item, show_client_app_col, client_app_name="") %}
-    <tr class="entry" data-id="{{ item.pk }}" data-format="{{ item.format }}">
+    <tr class="entry" data-id="{{ item.id }}" data-format="{{ item.format }}">
         <td class="text-center">
             <span class="label {{ const.LevelLabelClass[item.level] }} center-block text-uppercase">
-                {{ entry_level_display(item.level) }}
+                {{ item.get_level_display() }}
             </span>
         </td>
         <td>
@@ -43,7 +43,7 @@
         </td>
         <td class="text-center">
             <span class="label {{ const.DirectionLabelClass[item.direction] }}">
-                {{ entry_direction_display(item.direction) }}
+                {{ item.get_direction_display() }}
             </span>
         </td>
         <td class="data">

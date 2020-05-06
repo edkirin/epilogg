@@ -4,16 +4,15 @@ from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 
 import datetime
-import uuid
+import json
 
 from django.db.models import Q, F
 from django.core.exceptions import ValidationError
 
-from project.main.models import ClientApp
+from project.main.models import ClientApp, LogEntry
 from project.main.util import str_to_int
 import project.main.const as const
 import project.settings
-from project.lib.logs import Mongo
 
 if project.settings.local.ChannelsEnabled:
     from project.main.consumers import on_log_event_occurred
@@ -31,7 +30,6 @@ VALID_LEVELS = (
     const.LevelError,
     const.LevelCritical,
 )
-
 
 class EntryCounter:
     client_app = None
@@ -96,7 +94,6 @@ class HelloWorldView(APIView):
 
 class DispatchView(APIView):
     permission_classes = (IsAuthenticated,)
-    mongo = None
 
     #----------------------------------------------------------------------------------------------
 
@@ -130,6 +127,11 @@ class DispatchView(APIView):
         except ValueError:
             raise APIException("Invalid parameter")
 
+        if format == const.FormatJson:
+            d = json.dumps(data['data'])
+        else:
+            d = data['data']
+
         timestamp = None
         if 'timestamp' in data:
             try:
@@ -139,21 +141,18 @@ class DispatchView(APIView):
 
         counter.add(level=level, cnt=1)
 
-        return {
-            'pk': uuid.uuid4(),
-            'client_app': client_app.pk,
-            'client_app_name': client_app.name if client_app is not None else None,
-            'direction': direction,
-            'level': level,
-            'format': format,
-            'category': data['category'] if 'category' in data else None,
-            'group': data['group'] if 'group' in data else None,
-            'bulk_uuid': bulk_uuid,
-            'data': data['data'],
-            'vars': data['variables'] if 'variables' in data else None,
-            'confirmed': False,
-            'timestamp': timestamp if timestamp is not None else datetime.datetime.now(),
-        }
+        return LogEntry(
+            client_app=client_app,
+            direction=direction,
+            level=level,
+            format=format,
+            category=data['category'] if 'category' in data else None,
+            group=data['group'] if 'group' in data else None,
+            bulk_uuid=bulk_uuid,
+            data=d,
+            vars=data['variables'] if 'variables' in data else None,
+            timestamp=timestamp if timestamp is not None else datetime.datetime.now(),
+        )
 
     #----------------------------------------------------------------------------------------------
 
@@ -165,13 +164,13 @@ class DispatchView(APIView):
             data=data,
             counter=counter,
         )
-        self.mongo.log.insert(entry)
+        entry.save()
 
         counter.write()
 
         if project.settings.local.ChannelsEnabled:
             async_to_sync(on_log_event_occurred)(
-                client_app=client_app,
+                client_app_id=str(client_app.id),
                 log_items=[entry],
             )
 
@@ -198,15 +197,14 @@ class DispatchView(APIView):
             )
             bulk.append(entry)
 
-        if len(bulk):
-            self.mongo.log.insert_many(bulk)
+        bulk_entries = LogEntry.objects.bulk_create(bulk) if len(bulk) else None
 
         counter.write()
 
-        if bulk and project.settings.local.ChannelsEnabled:
+        if bulk_entries is not None and project.settings.local.ChannelsEnabled:
             async_to_sync(on_log_event_occurred)(
-                client_app=client_app,
-                log_items=bulk,
+                client_app_id=str(client_app.id),
+                log_items=bulk_entries,
             )
 
         return {
@@ -216,7 +214,6 @@ class DispatchView(APIView):
     #----------------------------------------------------------------------------------------------
 
     def post(self, request):
-        self.mongo = Mongo()
         client_app = self.get_client_from_request(request)
 
         if 'command' not in request.data:

@@ -6,7 +6,6 @@ import time
 
 from jinja2 import Environment
 import project.settings
-import project.main.const as const
 
 timestamp_inc = None
 
@@ -22,6 +21,7 @@ def get_site_name():
 
 
 def get_const_module():
+    import project.main.const
     return project.main.const
 
 
@@ -163,33 +163,11 @@ def get_timestamp_inc():
 #--------------------------------------------------------------------------------------------------
 
 
-def entry_level_display(n):
-    return dict(const.LevelChoices)[n]
-
-
-#--------------------------------------------------------------------------------------------------
-
-
-def entry_direction_display(n):
-    return dict(const.DirectionChoices)[n]
-
-
-#--------------------------------------------------------------------------------------------------
-
-
-def entry_format_display(n):
-    return dict(const.FormatChoices)[n]
-
-
-#--------------------------------------------------------------------------------------------------
-
-
 def environment(**options):
     from django.utils.translation import ugettext
 
     env = Environment(**options)
     env.add_extension('project.main.middleware.pagination.AutopaginateExtension')
-    env.add_extension('project.main.middleware.pagination.MongoAutopaginateExtension')
     env.globals.update({
         'static': staticfiles_storage.url,
         'url': reverse,
@@ -213,9 +191,6 @@ def environment(**options):
         'is_debug': lambda: project.settings.local.Debug,
         'channels_enabled': lambda: project.settings.local.ChannelsEnabled,
         'get_timestamp_inc': get_timestamp_inc,
-        'entry_level_display': entry_level_display,
-        'entry_direction_display': entry_direction_display,
-        'entry_format_display': entry_format_display,
     })
     return env
 

@@ -2,12 +2,12 @@ from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import render
 from django.contrib import auth
 from django.template.loader import render_to_string
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.contrib.auth.decorators import login_required
 
 import project.main.const as const
-from .models import ClientApp
-from project.lib.logs import Mongo
+from .models import ClientApp, LogEntry
+from project.api.epilogg_client import LevelWarning, LevelError, LevelCritical
 
 
 """
@@ -69,29 +69,23 @@ def frontpage(request):
 
         if cmd == 'mark_log_seen':
             app_id = request.POST.get('app_id')
-
             q = Q(facility__users=request.user) & \
                 Q(id=app_id)
 
-            try:
-                client_app = ClientApp.objects.get(q)
-            except ClientApp.DoesNotExist:
-                raise Http404
-
-            mongo = Mongo()
-            f = {
-                'client_app': client_app.pk,
-                'confirmed': False,
-            }
-            mongo.log.update_many(
-                filter=f,
-                update={
-                    '$set': {
-                        'confirmed': True,
-                    }
-                }
+            ClientApp.objects.filter(q).update(
+                entries_notset_unread_cnt=0,
+                entries_debug_unread_cnt=0,
+                entries_info_unread_cnt=0,
+                entries_warning_unread_cnt=0,
+                entries_error_unread_cnt=0,
+                entries_critical_unread_cnt=0,
             )
-            client_app.normalize_entries_cnt(save=True)
+
+            q = Q(client_app__facility__users=request.user) & \
+                Q(client_app=app_id) & \
+                Q(confirmed=False)
+
+            LogEntry.objects.filter(q).update(confirmed=True)
 
             return HttpResponseRedirect(request.POST.get('backlink'))
 
