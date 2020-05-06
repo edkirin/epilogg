@@ -34,7 +34,7 @@
 
 
 {% block main_content %}
-    {% autopaginate items %}
+    {% mongoautopaginate items %}
 
     <div class="box">
         {% if client_app %}
@@ -103,7 +103,7 @@
 
                     <tbody class="items">
                         {% for c in items %}
-                            {{ macro.render_log_entry_table_row(item=c, show_client_app_col=not client_app, client_app_name=get_client_app_name(c.client_app_id)) }}
+                            {{ macro.render_log_entry_table_row(item=c, show_client_app_col=not client_app, client_app_name=get_client_app_name(c.client_app)) }}
                         {% endfor %}
                     </tbody>
                 </table>

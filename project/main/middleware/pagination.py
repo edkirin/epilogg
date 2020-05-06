@@ -1,6 +1,7 @@
 # Code below is borrowed from the django_pagination module by James Tauber and Pinax Team,
 # http://pinaxproject.com/docs/dev/external/pagination/index.html
 
+
 def get_page(self):
     """
     A function which will be monkeypatched onto the request to get the current
@@ -48,7 +49,23 @@ register = template.Library()
 DEFAULT_PAGINATION = getattr(settings, 'PAGINATION_DEFAULT_PAGINATION', 50)
 DEFAULT_WINDOW = getattr(settings, 'PAGINATION_DEFAULT_WINDOW', 4)
 DEFAULT_ORPHANS = getattr(settings, 'PAGINATION_DEFAULT_ORPHANS', 0)
-INVALID_PAGE_RAISES_404 = getattr(settings, 'PAGINATION_INVALID_PAGE_RAISES_404', True)
+
+
+#**************************************************************************************************
+
+
+class MongoPaginator(Paginator):
+    __count = None
+
+    @property
+    def count(self):
+        if self.__count is None:
+            self.__count = self.object_list.count()
+        return self.__count
+
+
+#**************************************************************************************************
+
 
 class AutopaginateExtension(Extension):
     """
@@ -64,6 +81,9 @@ class AutopaginateExtension(Extension):
         original name of the dataset or ctx_variable
     """
     tags = set(['autopaginate'])
+
+    def get_paginator_cls(self):
+        return Paginator
 
     def parse(self, parser):
         lineno = parser.stream.__next__().lineno
@@ -94,14 +114,13 @@ class AutopaginateExtension(Extension):
 
     def _render_pages(self, objs, request, items_per_page, window=DEFAULT_WINDOW, hashtag=''):
         try:
-            paginator = Paginator(objs, items_per_page)
+            paginator = self.get_paginator_cls()(objs, items_per_page)
 
             try:
                 page_obj = paginator.page(request.page)
             except InvalidPage:
-                if INVALID_PAGE_RAISES_404:
-                    raise Http404('Invalid page requested.  If DEBUG were set to ' +
-                        'False, an HTTP 404 page would have been shown instead.')
+                raise Http404('Invalid page requested.  If DEBUG were set to ' +
+                    'False, an HTTP 404 page would have been shown instead.')
 
             page_range = paginator.page_range
             # Calculate the record range in the current page for display.
@@ -194,8 +213,23 @@ class AutopaginateExtension(Extension):
                 to_return['getvars'] = ''
 
             return to_return
-        except (KeyError, AttributeError):
+        except (KeyError, AttributeError) as e:
+            print("EXCEPTION", e)
             return {}
 
 
+#**************************************************************************************************
+
+
+class MongoAutopaginateExtension(AutopaginateExtension):
+    tags = set(['mongoautopaginate'])
+
+    def get_paginator_cls(self):
+        return MongoPaginator
+
+
+#**************************************************************************************************
+
+
 register.tag(AutopaginateExtension)
+register.tag(MongoAutopaginateExtension)

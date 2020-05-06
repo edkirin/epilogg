@@ -5,6 +5,7 @@ djangorestframework
 psycopg2-binary
 requests
 pyyaml
+pymongo
 
 # channels
 django-channels

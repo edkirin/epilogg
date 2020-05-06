@@ -5,47 +5,39 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 
 import json
+from project.lib.logs import Mongo
 
 import project.settings
 from project.main.models import ClientApp
-from project.jinja2env import format_datetime
 
 
 #**************************************************************************************************
 
 
-async def on_log_event_occurred(client_app_id, log_items):
+async def on_log_event_occurred(client_app, log_items):
     channel_layer = get_channel_layer()
+
+    items = []
+    for log in log_items[::-1]:  # set items in reverse order
+        d = Mongo.normalize_log_entry(item=log, app=client_app)
+        d.update({
+            'row_html': render_to_string('consumers/log_entry_log.html', {
+                'item': log,
+                'show_client_app_col': True,
+                'client_app_name': client_app.name if client_app is not None else "",
+            })
+        })
+        items.append(d)
 
     data = {
         'event': 'log_event_occurred',
         'log': {
-            'items': [
-                {
-                    'id': c.id,
-                    'direction': c.direction,
-                    'direction_str': c.get_direction_display(),
-                    'level': c.level,
-                    'level_str': c.get_level_display(),
-                    'format': c.format,
-                    'format_str': c.get_format_display(),
-                    'category': c.category,
-                    'group': c.group,
-                    'data': c.data,
-                    'vars': c.vars,
-                    'timestamp': format_datetime(c.timestamp),
-                    'row_html': render_to_string('consumers/log_entry_log.html', {
-                        'item': c,
-                        'show_client_app_col': True,
-                        'client_app_name': c.client_app.name if c.client_app is not None else "",
-                    })
-                } for c in log_items[::-1]  # set items in reverse order
-            ]
+            'items': items
         },
     }
 
     await channel_layer.group_send(
-        group=str(client_app_id),
+        group=str(client_app.pk),
         message={
             "type": "notify_for_log_event",
             "data": data,

@@ -2,12 +2,12 @@ from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import render
 from django.contrib import auth
 from django.template.loader import render_to_string
-from django.db.models import Q, Count
+from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 
 import project.main.const as const
-from .models import ClientApp, LogEntry
-from project.api.epilogg_client import LevelWarning, LevelError, LevelCritical
+from .models import ClientApp
+from project.lib.logs import Mongo
 
 
 """
@@ -81,11 +81,19 @@ def frontpage(request):
                 entries_critical_unread_cnt=0,
             )
 
-            q = Q(client_app__facility__users=request.user) & \
-                Q(client_app=app_id) & \
-                Q(confirmed=False)
-
-            LogEntry.objects.filter(q).update(confirmed=True)
+            mongo = Mongo()
+            f = {
+                'client_app': app_id,
+                'confirmed': False,
+            }
+            mongo.log.update_many(
+                filter=f,
+                update={
+                    '$set': {
+                        'confirmed': True,
+                    }
+                }
+            )
 
             return HttpResponseRedirect(request.POST.get('backlink'))
 

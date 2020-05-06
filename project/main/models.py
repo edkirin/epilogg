@@ -7,6 +7,7 @@ from django.db.models import Count
 
 import uuid
 
+from project.lib.logs import Mongo
 from project.jinja2env import format_datetime
 import project.main.const as const
 
@@ -119,35 +120,54 @@ class ClientApp(models.Model):
         self.entries_error_unread_cnt = 0
         self.entries_critical_unread_cnt = 0
 
-        ann = LogEntry.objects.filter(client_app=self). \
-            values('level', 'confirmed'). \
-            annotate(cnt=Count('level')). \
-            order_by('cnt')
+
+        mongo = Mongo()
+
+        f = {
+            'client_app': self.pk,
+        }
+
+        ann = mongo.log.aggregate([
+            {
+                '$match': f,
+            },
+            {
+                '$group': {
+                    '_id': {
+                        'level': '$level',
+                        'confirmed': '$confirmed',
+                    },
+                    'cnt': {
+                        '$sum': 1,
+                    },
+                },
+            },
+        ])
 
         for c in ann:
-            if c['level'] == const.LevelNotSet:
+            if c['_id']['level'] == const.LevelNotSet:
                 self.entries_notset_cnt += c['cnt']
-                if not c['confirmed']:
+                if not c['_id']['confirmed']:
                     self.entries_notset_unread_cnt = c['cnt']
-            elif c['level'] == const.LevelDebug:
+            elif c['_id']['level'] == const.LevelDebug:
                 self.entries_debug_cnt += c['cnt']
-                if not c['confirmed']:
+                if not c['_id']['confirmed']:
                     self.entries_debug_unread_cnt = c['cnt']
-            elif c['level'] == const.LevelInfo:
+            elif c['_id']['level'] == const.LevelInfo:
                 self.entries_info_cnt += c['cnt']
-                if not c['confirmed']:
+                if not c['_id']['confirmed']:
                     self.entries_info_unread_cnt = c['cnt']
-            elif c['level'] == const.LevelWarning:
+            elif c['_id']['level'] == const.LevelWarning:
                 self.entries_warning_cnt += c['cnt']
-                if not c['confirmed']:
+                if not c['_id']['confirmed']:
                     self.entries_warning_unread_cnt = c['cnt']
-            elif c['level'] == const.LevelError:
+            elif c['_id']['level'] == const.LevelError:
                 self.entries_error_cnt += c['cnt']
-                if not c['confirmed']:
+                if not c['_id']['confirmed']:
                     self.entries_error_unread_cnt = c['cnt']
-            elif c['level'] == const.LevelCritical:
+            elif c['_id']['level'] == const.LevelCritical:
                 self.entries_critical_cnt += c['cnt']
-                if not c['confirmed']:
+                if not c['_id']['confirmed']:
                     self.entries_critical_unread_cnt = c['cnt']
 
         if save:

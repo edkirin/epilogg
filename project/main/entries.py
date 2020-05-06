@@ -1,19 +1,19 @@
 from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import render
-from django.contrib import auth
-from django.template.loader import render_to_string
-from django.db.models import Q, Count
+from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 
 import json
 import yaml
+import uuid
+import pymongo
 
-from .models import Facility, ClientApp, LogEntry
+from .models import Facility, ClientApp
 import project.main.const as const
-from project.jinja2env import format_datetime
 from .util import str_to_int
 from .views import create_sidebar_data
 import project.settings
+from project.lib.logs import Mongo
 
 
 #--------------------------------------------------------------------------------------------------
@@ -121,28 +121,36 @@ def entry_list(request, facility_id, client_app_id=None):
             raise Http404
 
     if client_app is None:
-        q_common = Q(client_app__in=all_client_apps_ids)
+        f_common = {
+            'client_app': {
+                '$in': all_client_apps_ids,
+            },
+        }
     else:
-        q_common = Q(client_app=client_app)
+        f_common = {
+            'client_app': client_app.pk,
+        }
 
     active_filter = get_list_filters(request, facility=facility, client_app=client_app)
 
-    q = Q() & q_common
+    f = f_common.copy()
     if 'category' in active_filter and active_filter['category'] is not None:
-        q &= Q(category=active_filter['category'])
+        f.update({
+            'category': active_filter['category'],
+        })
 
     if 'level' in active_filter and active_filter['level'] is not None:
-        q &= Q(level=active_filter['level'])
+        f.update({
+            'level': active_filter['level'],
+        })
 
-    if 'search' in active_filter and active_filter['search']:
-        terms = [c.strip() for c in active_filter['search'].split(' ') if len(c)]
-        for term in terms:
-            q &= Q(data__icontains=term)
+    # if 'search' in active_filter and active_filter['search']:
+    #     terms = [c.strip() for c in active_filter['search'].split(' ') if len(c)]
+    #     for term in terms:
+    #         q &= Q(data__icontains=term)
 
-    only = [
-        'format', 'level', 'timestamp', 'category', 'direction', 'data', 'client_app_id',
-    ]
-    items = LogEntry.objects.only(*only).filter(q)
+    mongo = Mongo()
+    items = mongo.log.find(f).sort('timestamp', direction=pymongo.DESCENDING)
 
     sidebar_data = create_sidebar_data(
         user=request.user,
@@ -151,13 +159,22 @@ def entry_list(request, facility_id, client_app_id=None):
     )
 
     # get all categories
-    ann = LogEntry.objects.filter(q_common). \
-        values('category'). \
-        annotate(cnt=Count('category')). \
-        order_by('category')
+    categories = mongo.log.aggregate([
+        {
+            '$match': f_common,
+        },
+        {
+            '$group': {
+                '_id': "$category",
+                'total': {
+                    '$sum': 1,
+                },
+            },
+        },
+    ])
 
     filter = {
-        'categories': [c['category'] for c in ann if c['category']],
+        'categories': [c['_id'] for c in categories if c['_id']],
         'search': active_filter['search'] if 'search' in active_filter else "",
         'selected_category': active_filter['category'] if 'category' in active_filter else None,
         'selected_level': active_filter['level'] if  'level' in active_filter else None,
@@ -190,29 +207,35 @@ def entry_list(request, facility_id, client_app_id=None):
 
 @login_required
 def get_log_entry_details(request):
-    q = Q(id=request.POST.get('id')) & \
-        Q(client_app__facility__users=request.user)
+    f = {
+        'pk': uuid.UUID(request.POST.get('id')),
+    }
 
-    related = [
-        'client_app',
-    ]
+    mongo = Mongo()
+    item = mongo.log.find_one(f)
+
+    if item is None:
+        raise Http404
+
+    q = Q(pk=item['client_app']) & \
+        Q(facility__users=request.user)
 
     try:
-        item = LogEntry.objects.select_related(*related).get(q)
-    except (LogEntry.DoesNotExist, ValueError):
+        app = ClientApp.objects.get(q)
+    except ClientApp.DoesNotExist:
         raise Http404
 
     # always add plain data
     data = {
         'formats': ['plain'],
-        'plain': item.data,
+        'plain': str(item['data']),
     }
 
     force_unicode = True
 
-    if item.format == const.FormatJson:
+    if item['format'] == const.FormatJson:
         try:
-            json_data = json.loads(item.data)
+            json_data = item['data']
 
             # decode json
             data.update({
@@ -238,31 +261,21 @@ def get_log_entry_details(request):
             pass
 
     vars = ""
-    if item.vars:
+    if item['vars']:
         try:
-            vars = yaml.dump(json.loads(item.vars), default_flow_style=False)
+            vars = yaml.dump(item['vars'], default_flow_style=False)
             # vars = json.dumps(json.loads(item.vars), sort_keys=True, indent=4, separators=(',', ': '))
         except:
             pass
     if len(vars):
         data['formats'].append('vars')
 
-    res = {
-        'id': item.id,
-        'client_app': item.client_app.name,
-        'timestamp': format_datetime(item.timestamp, include_seconds=True),
-        'level': item.level,
-        'level_str': item.get_level_display(),
-        'level_label_class': const.LevelLabelClass[item.level],
-        'format': item.format,
-        'format_str': item.get_format_display(),
-        'category': item.category,
-        'data': data,
-        'vars': vars,
-        'direction': item.direction,
-        'direction_str': item.get_direction_display(),
-        'direction_label_class': const.DirectionLabelClass[item.direction],
-    }
+    res = mongo.normalize_log_entry(
+        item=item,
+        app=app,
+        data=data,
+        vars=vars,
+    )
 
     return HttpResponse(json.dumps(res), content_type="application/json")
 

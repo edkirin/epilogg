@@ -28,4 +28,3 @@ class ClientAppAdmin(admin.ModelAdmin):
 
 admin.site.register(Facility)
 admin.site.register(ClientApp, ClientAppAdmin)
-admin.site.register(LogEntry)
