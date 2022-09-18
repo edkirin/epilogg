@@ -1,3 +1,7 @@
+import logging
+import uuid
+from typing import List
+
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
@@ -7,14 +11,18 @@ from django.template.loader import render_to_string
 import json
 
 import project.settings
-from project.main.models import ClientApp
+from project.main.models import ClientApp, LogEntry
 from project.jinja2env import format_datetime
+
+
+logger = logging.getLogger("websockets")
 
 
 #**************************************************************************************************
 
 
-async def on_log_event_occurred(client_app_id, log_items):
+async def on_log_event_occurred(client_app_id: str, log_items: List[LogEntry]):
+    logger.info(f"[{client_app_id}] Log event: {log_items}")
     channel_layer = get_channel_layer()
 
     data = {
@@ -44,6 +52,7 @@ async def on_log_event_occurred(client_app_id, log_items):
         },
     }
 
+    logger.info(f"Sending notify_for_log_event: {data}")
     await channel_layer.group_send(
         group=str(client_app_id),
         message={
@@ -74,6 +83,7 @@ class OnLogEventConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         debug_print(">>> CONNECT", self.channel_name)
+        logger.info(f"Client connected to channel {self.channel_name}")
 
         self.client_apps = dict()
 
@@ -84,15 +94,18 @@ class OnLogEventConsumer(AsyncWebsocketConsumer):
     #----------------------------------------------------------------------------------------------
 
     async def disconnect(self, close_code):
+        logger.info(f"Client disconnected from channel {self.channel_name}")
         await self.unsubscribe_from_client_app_groups()
         debug_print(">>> DISCONNECT", self.channel_name)
 
     #----------------------------------------------------------------------------------------------
 
     async def receive(self, text_data=None, bytes_data=None):
+        logger.info(f"Client received data: {text_data}")
         try:
             data = json.loads(text_data)
         except:
+            logger.error(f"Error decoding data to json: {text_data}")
             data = None
 
         debug_print(">>> RECEIVE")
@@ -187,6 +200,7 @@ class OnLogEventConsumer(AsyncWebsocketConsumer):
 
         for client_app_id in self.client_apps:
             debug_print(">>> subscribed to", client_app_id, self.channel_name)
+            logger.info(f"[{client_app_id}] Subscribe to channel: {self.channel_name}")
             await self.channel_layer.group_add(
                 group=client_app_id,
                 channel=self.channel_name,
@@ -196,6 +210,7 @@ class OnLogEventConsumer(AsyncWebsocketConsumer):
 
     async def unsubscribe_from_client_app_groups(self):
         for client_app_id in self.client_apps:
+            logger.info(f"[{client_app_id}] Unsubscribe from channel: {self.channel_name}")
             await self.channel_layer.group_discard(
                 group=client_app_id,
                 channel=self.channel_name,

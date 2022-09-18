@@ -12,11 +12,14 @@ https://docs.djangoproject.com/en/dev/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+from pathlib import Path
+
 import project.settings_local
 local = project.settings_local
 
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = Path(__file__).resolve(strict=True).parent.parent
+LOG_DIR = project.settings_local.LOG_DIR
 
 
 # Quick-start development settings - unsuitable for production
@@ -275,3 +278,58 @@ if local.ChannelsEnabled:
             },
         },
     }
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    'formatters': {
+        'message': {
+            'format': '%(message)s'
+        },
+        'brief': {
+            'format': '%(asctime)s %(levelname)s: %(message)s'
+        },
+        'full': {
+            'format': '%(asctime)s [%(module)s.%(funcName)s:%(lineno)d] %(levelname)s: %(message)s'
+        },
+    },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse'
+        }
+    },
+    'handlers': {
+        'null': {
+            'class': 'logging.NullHandler',
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'message',
+        },
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'filters': ['require_debug_false'],
+            'include_html': True,
+        },
+        'websockets': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': LOG_DIR.joinpath('websockets.log'),
+            'formatter': 'brief',
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['mail_admins'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+        'websockets': {
+            'handlers': ['websockets'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
